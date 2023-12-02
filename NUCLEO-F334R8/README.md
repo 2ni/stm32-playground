@@ -3,7 +3,6 @@
 ## Useful links
 - https://github.com/cpq/bare-metal-programming-guide/tree/main
 - http://stefanfrings.de/stm32/stm32f3.html
-- 
 
 ## Install STM32CubeMX on a mac
 see https://community.st.com/t5/stm32cubemx-mcus/how-to-open-stm32cubemx-6-3-0-on-macos/td-p/227909
@@ -38,12 +37,12 @@ brew install stlink
 st-info --version
 ```
 
-Installation is based on the following steps and are reflected mainly in the Makefile, so no need to run it manually.
 ```
 make debug
 make monitor (in separate terminal)
 ```
 
+Installation is based on the following steps and are reflected mainly in the Makefile, so no need to run it manually, but might be useful to setup the toolchain of another STM32 chip:
 1. on https://github.com/STMicroelectronics search cmsis_device_f3, set latest version
 2. with stm32 cube mx create *.ld file once (create new project and export as Makefile, then get the file)
 3. get link of startup_stm32f33*.s file from cmsis_f3/Source/Templates/gcc
