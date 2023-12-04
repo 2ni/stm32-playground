@@ -12,7 +12,7 @@
 #define PINNO(pin) (pin & 255) // get number from PIN('A', 5)
 #define PINBANK(pin) (pin >> 8) // get port from PIN('A', 5), A=0
 
-// SWO PB3
+// PB3 must be connected to SWO
 
 // PA5 (pin 21) or PB13 (pin 34)
 #define LED_PIN PIN('A', 5)
@@ -22,25 +22,6 @@ enum { GPIO_MODE_INPUT, GPIO_MODE_OUTPUT, GPIO_MODE_AF, GPIO_MODE_ANALOG };
 enum { GPIO_OTYPE_PUSH_PULL, GPIO_OTYPE_OPEN_DRAIN };
 enum { GPIO_SPEED_LOW, GPIO_SPEED_MEDIUM, GPIO_SPEED_HIGH = 3 };
 enum { GPIO_PULL_NONE, GPIO_PULL_UP, GPIO_PULL_DOWN };
-
-static inline void DL(char *ptr) {
-  while (*ptr) {
-    ITM_SendChar(*ptr++);
-  }
-  ITM_SendChar('\n');
-}
-
-static inline void DF(const char *format, ...) {
-  char buffer[256];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-  const char *p = buffer;
-  while (*p) {
-    ITM_SendChar(*p++);
-  }
-}
 
 static inline void spin(volatile uint32_t count) {
   while (count--) (void) 0;

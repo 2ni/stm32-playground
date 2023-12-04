@@ -4,6 +4,10 @@
 - https://github.com/cpq/bare-metal-programming-guide/tree/main
 - http://stefanfrings.de/stm32/stm32f3.html
 
+## of interest
+- https://github.com/wd5gnr/mbed-swo/
+  based on mbed, debugport.printf()
+
 ## Install STM32CubeMX on a mac
 see https://community.st.com/t5/stm32cubemx-mcus/how-to-open-stm32cubemx-6-3-0-on-macos/td-p/227909
 ```
@@ -65,6 +69,7 @@ q                    quit gdb
 print var
 set var=val
 break lineno         set breakpoint at line number
+break fn:lineno      set breakpoint at line number of file fn
 break func           set breakpoint at specified function
 break class:func
 info break

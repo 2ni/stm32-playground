@@ -7,7 +7,7 @@ CFLAGS += -I. -Icmsis_core/CMSIS/Core/Include -Icmsis_f3/Include
 CFLAGS += -mcpu=cortex-m4 -mthumb
 LDFLAGS ?= -TSTM32F334R8Tx_FLASH.ld -nostartfiles -nostdlib --specs nano.specs -lc -lgcc -Wl,--gc-sections -Wl,-Map=$@.map
 
-SOURCES = main.c
+SOURCES = main.c retarget.c
 SOURCES += cmsis_f3/Source/Templates/gcc/startup_stm32f334x8.s
 
 RM = rm -rf
@@ -22,14 +22,14 @@ monitor:
 
 build: firmware.bin
 
-firmware.elf: cmsis_core cmsis_f3 hal.h STM32F334R8Tx_FLASH.ld Makefile $(SOURCES)
+firmware.elf: cmsis_core cmsis_f3 hal.h STM32F334R8Tx_FLASH.ld Makefile stm32f334r8.cfg $(SOURCES)
 	arm-none-eabi-gcc $(SOURCES) $(CFLAGS) $(CFLAGS_EXTRA) $(LDFLAGS) -o $@
 
 firmware.bin: firmware.elf
 	arm-none-eabi-objcopy -O binary $< $@
 
 flash-openocd: firmware.elf
-	openocd -f interface/stlink-v2-1.cfg -f target/stm32f3x.cfg -c "program firmware.elf verify reset exit"
+	openocd -f interface/stlink.cfg -f target/stm32f3x.cfg -c "program firmware.elf verify reset exit"
 
 flash: firmware.bin
 	st-flash --reset write $< 0x8000000
@@ -40,5 +40,7 @@ cmsis_core:
 cmsis_f3:
 	git clone --depth 1 -b v2.3.7 https://github.com/STMicroelectronics/cmsis_device_f3 $@
 
+uid:
+	openocd  -f interface/stlink.cfg -f target/stm32f3x.cfg -c "init" -c "mdw 0x1FFFF7AC 3" -c "exit"
 clean:
 	$(RM) firmware.* cmsis_*
