@@ -1,4 +1,5 @@
-#include <stm32f334x8.h>
+#include <stm32f3xx.h> // define target STM32F334x8 in Makefile
+//#include <stm32f334x8.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -7,7 +8,8 @@
 #include <stdarg.h>
 
 #define BIT(x) (1UL << (x))
-#define SETBITS(R, CLEARMASK, SETMASK) (R) = ((R) & ~(CLEARMASK)) | (SETMASK)
+// #define SET_BIT(REG, BIT) ((REG) |= (BIT))
+// #define SETBITS(R, CLEARMASK, SETMASK) (R) = ((R) & ~(CLEARMASK)) | (SETMASK)
 #define PIN(bank, num) ((((bank) - 'A') << 8) | (num))
 #define PINNO(pin) (pin & 255) // get number from PIN('A', 5)
 #define PINBANK(pin) (pin >> 8) // get port from PIN('A', 5), A=0
@@ -50,11 +52,11 @@ static inline void gpio_init(uint16_t pin, uint8_t mode, uint8_t type, uint8_t s
   GPIO_TypeDef *gpio = gpio_bank(pin);
   uint8_t n = (uint8_t) (PINNO(pin));
   RCC->AHBENR |= BIT(RCC_AHBENR_GPIOAEN_Pos + PINBANK(pin));  // enable gpio clk
-  SETBITS(gpio->OTYPER, 1UL << n, ((uint32_t) type) << n);
-  SETBITS(gpio->OSPEEDR, 3UL << (n * 2), ((uint32_t) speed) << (n * 2));
-  SETBITS(gpio->PUPDR, 3UL << (n * 2), ((uint32_t) pull) << (n * 2));
-  SETBITS(gpio->AFR[n >> 3], 15UL << ((n & 7) * 4), ((uint32_t) af) << ((n & 7) * 4));
-  SETBITS(gpio->MODER, 3UL << (n * 2), ((uint32_t) mode) << (n * 2));
+  MODIFY_REG(gpio->OTYPER, 1UL << n, ((uint32_t) type) << n);
+  MODIFY_REG(gpio->OSPEEDR, 3UL << (n * 2), ((uint32_t) speed) << (n * 2));
+  MODIFY_REG(gpio->PUPDR, 3UL << (n * 2), ((uint32_t) pull) << (n * 2));
+  MODIFY_REG(gpio->AFR[n >> 3], 15UL << ((n & 7) * 4), ((uint32_t) af) << ((n & 7) * 4));
+  MODIFY_REG(gpio->MODER, 3UL << (n * 2), ((uint32_t) mode) << (n * 2));
 }
 
 static inline void gpio_input(uint16_t pin) {
@@ -75,20 +77,38 @@ static inline bool timer_expired(volatile uint64_t *t, uint64_t prd, uint64_t no
 }
 
 static inline void clock_init(void) {
-  /*
-  SCB->CPACR |= ((3UL << 10 * 2) | (3UL << 11 * 2));  // Enable FPU
-  FLASH->ACR |= FLASH_ACR_LATENCY_5WS | FLASH_ACR_PRFTEN | FLASH_ACR_ICEN;
-  RCC->PLLCFGR &= ~((BIT(17) - 1));                 // Clear PLL multipliers
-  RCC->PLLCFGR |= (((PLL_P - 2) / 2) & 3) << 16;    // Set PLL_P
-  RCC->PLLCFGR |= PLL_M | (PLL_N << 6);             // Set PLL_M and PLL_N
-  RCC->CR |= BIT(24);                               // Enable PLL
-  while ((RCC->CR & BIT(25)) == 0) spin(1);         // Wait until done
-  RCC->CFGR = (APB1_PRE << 10) | (APB2_PRE << 13);  // Set prescalers
-  RCC->CFGR |= 2;                                   // Set clock source to PLL
-  while ((RCC->CFGR & 12) == 0) spin(1);            // Wait until done
-  */
+  // FLASH->ACR latency, p. 66
+  // 000: clk <= 24MHz      -> 0UL
+  // 001: 24 < clk <= 48MHz -> FLASH_ACR_LATENCY_0
+  // 010: 48 < clk <= 72MHZ -> FLASH_ACR_LATENCY_1
+  // MODIFY_REG(FLASH->ACR, FLASH_ACR_LATENCY_Msk,
 
-  SystemCoreClock = 8000000;
-  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;    // enable ticks
+  MODIFY_REG(RCC->CR, RCC_CR_HSEON_Msk, RCC_CR_HSEON); // external clock 8MHz crystal
+  MODIFY_REG(RCC->CR, RCC_CR_HSION_Msk, 0UL); // turn off internal clock
+  while (!(RCC->CR & RCC_CR_HSERDY));
+
+  MODIFY_REG(RCC->CFGR, RCC_CFGR_SW_Msk, RCC_CFGR_SW_1); // select PLL as input
+  MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLMUL_Msk, RCC_CFGR_PLLMUL2); // PLLMUL = *2
+  MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC_Msk, RCC_CFGR_PLLSRC_HSE_PREDIV); // System Clock Mux = PLLCLK
+
+  MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV_Msk, RCC_CFGR2_PREDIV_DIV1); // HSE prescaler = /1
+
+  // enable PLL
+  RCC->CR |= RCC_CR_PLLON;
+  while (!(RCC->CR & RCC_CR_PLLRDY));
+
+  // RTC
+  SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
+  SET_BIT(PWR->CR, PWR_CR_DBP); // DBP in PWR_CR must be set to modify LSEON, LSEBYP, RTCSEL, RTCEN
+
+  MODIFY_REG(RCC->BDCR, RCC_BDCR_LSEDRV_Msk, RCC_BDCR_LSEDRV_0); // medium drive
+  SET_BIT(RCC->BDCR, RCC_BDCR_LSEON); // enable LSE
+  while (!(RCC->BDCR & RCC_BDCR_LSERDY));
+
+  MODIFY_REG(RCC->BDCR, RCC_BDCR_RTCSEL_Msk, RCC_BDCR_RTCSEL_LSE); // LSE is source of RTC
+  SET_BIT(RCC->BDCR, RCC_BDCR_RTCEN); // enable RTC
+
+  SystemCoreClock = 16000000;
+  MODIFY_REG(RCC->APB2ENR, RCC_APB2ENR_SYSCFGEN_Msk, RCC_APB2ENR_SYSCFGEN); // enable clock ticks
   SysTick_Config(SystemCoreClock / 1000);
 }

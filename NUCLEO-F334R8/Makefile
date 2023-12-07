@@ -2,6 +2,7 @@
 
 CFLAGS ?= -W -Wall -Wextra -Werror -Wundef -Wshadow -Wdouble-promotion
 CFLAGS += -Wformat-truncation -fno-common -Wconversion
+CFLAGS += -DSTM32F334x8 # needed to include <stm32f3xx.h>
 CFLAGS += -g3 -Os -ffunction-sections -fdata-sections
 CFLAGS += -I. -Icmsis_core/CMSIS/Core/Include -Icmsis_f3/Include
 CFLAGS += -mcpu=cortex-m4 -mthumb
@@ -14,10 +15,15 @@ RM = rm -rf
 
 debug: firmware.elf
 	@printf "" > debug.log
+	@arm-none-eabi-gdb -ex "target extended | openocd -f stm32f334r8.cfg -c 'gdb_port pipe'" firmware.elf -ex "load" -ex "monitor reset halt" -ex "set confirm off" -ex "run"
+
+debug-nostart: firmware.elf
+	@printf "" > debug.log
 	@arm-none-eabi-gdb -ex "target extended | openocd -f stm32f334r8.cfg -c 'gdb_port pipe'" firmware.elf -ex "load" -ex "monitor reset halt" -ex "set confirm off"
 
 monitor:
-	@[ ! -f "debug.log" ] && touch debug.log; printf "" > debug.log; tail -f debug.log
+	@touch debug.log; tail -n0 -f debug.log | ./monitor.zsh
+	#@[ ! -f "debug.log" ] && touch debug.log; printf "" > debug.log; tail -n0 -f debug.log | ./monitor.zsh
 
 
 build: firmware.bin

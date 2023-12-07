@@ -62,6 +62,7 @@ Installation is based on the following steps and are reflected mainly in the Mak
 run                  start over
 continue, c          continue
 finish               continue until current function finished
+where                show where it currently stopped
 step
 step N
 next                 does not step into function
